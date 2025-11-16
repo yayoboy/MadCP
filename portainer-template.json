@@ -1,0 +1,292 @@
+{
+  "version": "2",
+  "templates": [
+    {
+      "type": 3,
+      "title": "MadCP - Modern AI-Driven Code Platform",
+      "description": "Piattaforma completa per analisi del codebase, ricerca semantica e assistenza AI allo sviluppo",
+      "note": "Deploy completo di MadCP con PostgreSQL, Redis, Qdrant e Core API. Richiede API Keys per funzionalità AI.",
+      "categories": ["development", "ai", "code-analysis"],
+      "platform": "linux",
+      "logo": "https://raw.githubusercontent.com/yayoboy/MadCP/main/docs/assets/logo.png",
+      "repository": {
+        "url": "https://github.com/yayoboy/MadCP",
+        "stackfile": "portainer-stack.yml"
+      },
+      "env": [
+        {
+          "name": "POSTGRES_PASSWORD",
+          "label": "PostgreSQL Password",
+          "description": "Password per il database PostgreSQL (OBBLIGATORIA)",
+          "default": ""
+        },
+        {
+          "name": "JWT_SECRET_KEY",
+          "label": "JWT Secret Key",
+          "description": "Chiave segreta per JWT (min 32 caratteri, OBBLIGATORIA)",
+          "default": ""
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "label": "OpenAI API Key",
+          "description": "API Key OpenAI per funzionalità AI (opzionale ma raccomandato)",
+          "default": ""
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "label": "Anthropic API Key",
+          "description": "API Key Anthropic Claude (opzionale)",
+          "default": ""
+        },
+        {
+          "name": "POSTGRES_DB",
+          "label": "Database Name",
+          "description": "Nome del database PostgreSQL",
+          "default": "madcp"
+        },
+        {
+          "name": "POSTGRES_USER",
+          "label": "Database User",
+          "description": "Username database PostgreSQL",
+          "default": "madcp"
+        },
+        {
+          "name": "APP_ENV",
+          "label": "Environment",
+          "description": "Ambiente di esecuzione",
+          "default": "production",
+          "select": [
+            {
+              "text": "Production",
+              "value": "production"
+            },
+            {
+              "text": "Development",
+              "value": "development"
+            }
+          ]
+        },
+        {
+          "name": "DEBUG",
+          "label": "Debug Mode",
+          "description": "Attiva modalità debug (solo per development)",
+          "default": "false",
+          "select": [
+            {
+              "text": "Disabled",
+              "value": "false"
+            },
+            {
+              "text": "Enabled",
+              "value": "true"
+            }
+          ]
+        },
+        {
+          "name": "LOG_LEVEL",
+          "label": "Log Level",
+          "description": "Livello di logging",
+          "default": "INFO",
+          "select": [
+            {
+              "text": "DEBUG",
+              "value": "DEBUG"
+            },
+            {
+              "text": "INFO",
+              "value": "INFO"
+            },
+            {
+              "text": "WARNING",
+              "value": "WARNING"
+            },
+            {
+              "text": "ERROR",
+              "value": "ERROR"
+            }
+          ]
+        },
+        {
+          "name": "API_PORT",
+          "label": "API Port",
+          "description": "Porta per l'API REST",
+          "default": "8000"
+        },
+        {
+          "name": "POSTGRES_PORT",
+          "label": "PostgreSQL Port",
+          "description": "Porta PostgreSQL",
+          "default": "5432"
+        },
+        {
+          "name": "REDIS_PORT",
+          "label": "Redis Port",
+          "description": "Porta Redis",
+          "default": "6379"
+        },
+        {
+          "name": "QDRANT_HTTP_PORT",
+          "label": "Qdrant HTTP Port",
+          "description": "Porta HTTP Qdrant",
+          "default": "6333"
+        },
+        {
+          "name": "FEATURE_SEMANTIC_SEARCH",
+          "label": "Enable Semantic Search",
+          "description": "Abilita ricerca semantica",
+          "default": "true",
+          "select": [
+            {
+              "text": "Enabled",
+              "value": "true"
+            },
+            {
+              "text": "Disabled",
+              "value": "false"
+            }
+          ]
+        },
+        {
+          "name": "FEATURE_CODE_ANALYSIS",
+          "label": "Enable Code Analysis",
+          "description": "Abilita analisi del codice",
+          "default": "true",
+          "select": [
+            {
+              "text": "Enabled",
+              "value": "true"
+            },
+            {
+              "text": "Disabled",
+              "value": "false"
+            }
+          ]
+        },
+        {
+          "name": "FEATURE_AI_ASSISTANCE",
+          "label": "Enable AI Assistance",
+          "description": "Abilita assistenza AI",
+          "default": "true",
+          "select": [
+            {
+              "text": "Enabled",
+              "value": "true"
+            },
+            {
+              "text": "Disabled",
+              "value": "false"
+            }
+          ]
+        },
+        {
+          "name": "PLUGINS_ENABLED",
+          "label": "Enable Plugins",
+          "description": "Abilita sistema plugin",
+          "default": "true",
+          "select": [
+            {
+              "text": "Enabled",
+              "value": "true"
+            },
+            {
+              "text": "Disabled",
+              "value": "false"
+            }
+          ]
+        },
+        {
+          "name": "PROMETHEUS_ENABLED",
+          "label": "Enable Prometheus",
+          "description": "Abilita metriche Prometheus",
+          "default": "true",
+          "select": [
+            {
+              "text": "Enabled",
+              "value": "true"
+            },
+            {
+              "text": "Disabled",
+              "value": "false"
+            }
+          ]
+        },
+        {
+          "name": "REDIS_MAX_MEMORY",
+          "label": "Redis Max Memory",
+          "description": "Memoria massima per Redis",
+          "default": "512mb"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "title": "MadCP - Development",
+      "description": "MadCP configurato per ambiente di sviluppo con debug e hot reload",
+      "note": "Versione development di MadCP con funzionalità di debug abilitate.",
+      "categories": ["development", "ai"],
+      "platform": "linux",
+      "logo": "https://raw.githubusercontent.com/yayoboy/MadCP/main/docs/assets/logo.png",
+      "repository": {
+        "url": "https://github.com/yayoboy/MadCP",
+        "stackfile": "docker-compose.dev.yml"
+      },
+      "env": [
+        {
+          "name": "POSTGRES_PASSWORD",
+          "label": "PostgreSQL Password",
+          "default": "madcp_dev"
+        },
+        {
+          "name": "JWT_SECRET_KEY",
+          "label": "JWT Secret Key",
+          "default": "dev-secret-key-not-for-production-use"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "label": "OpenAI API Key",
+          "default": ""
+        },
+        {
+          "name": "DEBUG",
+          "label": "Debug Mode",
+          "default": "true"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "title": "MadCP - Minimal (Core Only)",
+      "description": "Deploy minimale di MadCP - solo Core API e database essenziali",
+      "note": "Configurazione minima senza monitoring. Ideale per test o ambienti resource-constrained.",
+      "categories": ["development", "ai"],
+      "platform": "linux",
+      "logo": "https://raw.githubusercontent.com/yayoboy/MadCP/main/docs/assets/logo.png",
+      "repository": {
+        "url": "https://github.com/yayoboy/MadCP",
+        "stackfile": "portainer-stack.yml"
+      },
+      "env": [
+        {
+          "name": "POSTGRES_PASSWORD",
+          "label": "PostgreSQL Password",
+          "default": ""
+        },
+        {
+          "name": "JWT_SECRET_KEY",
+          "label": "JWT Secret Key",
+          "default": ""
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "label": "OpenAI API Key",
+          "default": ""
+        },
+        {
+          "name": "PROMETHEUS_ENABLED",
+          "label": "Enable Prometheus",
+          "default": "false"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,294 @@
+# ============================================================================
+# MadCP - Portainer Stack Configuration
+# ============================================================================
+#
+# This stack is optimized for deployment via Portainer.
+#
+# Deployment Instructions:
+#   1. Open Portainer UI
+#   2. Go to "Stacks" → "Add Stack"
+#   3. Name: madcp
+#   4. Paste this file content OR use "Repository" method
+#   5. Configure environment variables in Portainer UI
+#   6. Deploy!
+#
+# All configuration is done via environment variables in Portainer.
+# ============================================================================
+
+version: '3.8'
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  madcp:
+    driver: bridge
+    name: madcp-network
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  app_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ============================================================================
+# Services
+# ============================================================================
+services:
+
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: madcp-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-madcp}
+      POSTGRES_USER: ${POSTGRES_USER:-madcp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    networks:
+      - madcp
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    labels:
+      - "io.portainer.accesscontrol.public=true"
+      - "madcp.service=database"
+
+  # ==========================================================================
+  # Redis Cache
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: madcp-redis
+    restart: unless-stopped
+
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory ${REDIS_MAX_MEMORY:-512mb}
+      --maxmemory-policy allkeys-lru
+
+    volumes:
+      - redis_data:/data
+
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+    networks:
+      - madcp
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+    labels:
+      - "io.portainer.accesscontrol.public=true"
+      - "madcp.service=cache"
+
+  # ==========================================================================
+  # Qdrant Vector Database
+  # ==========================================================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: madcp-qdrant
+    restart: unless-stopped
+
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__LOG_LEVEL: ${QDRANT_LOG_LEVEL:-INFO}
+
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+
+    networks:
+      - madcp
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    labels:
+      - "io.portainer.accesscontrol.public=true"
+      - "madcp.service=vector-db"
+
+  # ==========================================================================
+  # MadCP Core API
+  # ==========================================================================
+  core-api:
+    image: ${CORE_API_IMAGE:-madcp/core-api:latest}
+    container_name: madcp-core-api
+    restart: unless-stopped
+
+    # Build from source (if image not available)
+    build:
+      context: ./services/core-api
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+
+    environment:
+      # Application
+      APP_NAME: ${APP_NAME:-MadCP}
+      APP_ENV: ${APP_ENV:-production}
+      DEBUG: ${DEBUG:-false}
+
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-madcp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-madcp}
+
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+
+      # Qdrant
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION:-madcp_embeddings}
+
+      # LLM API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY required}
+
+      # Features
+      FEATURE_SEMANTIC_SEARCH: ${FEATURE_SEMANTIC_SEARCH:-true}
+      FEATURE_CODE_ANALYSIS: ${FEATURE_CODE_ANALYSIS:-true}
+      FEATURE_AI_ASSISTANCE: ${FEATURE_AI_ASSISTANCE:-true}
+      FEATURE_PLANNING: ${FEATURE_PLANNING:-true}
+      PLUGINS_ENABLED: ${PLUGINS_ENABLED:-true}
+
+      # Monitoring
+      PROMETHEUS_ENABLED: ${PROMETHEUS_ENABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+    volumes:
+      - app_data:/app/data
+      - ${HOST_CONFIG_PATH:-./config}:/app/config:ro
+      - ${HOST_PLUGINS_PATH:-./plugins}:/app/plugins
+
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+    networks:
+      - madcp
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    labels:
+      - "io.portainer.accesscontrol.public=true"
+      - "madcp.service=core-api"
+      - "traefik.enable=true"
+      - "traefik.http.routers.madcp-api.rule=Host(`${API_DOMAIN:-api.madcp.local}`)"
+      - "traefik.http.services.madcp-api.loadbalancer.server.port=8000"
+
+  # ==========================================================================
+  # Prometheus (Optional - only if monitoring enabled)
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: madcp-prometheus
+    restart: unless-stopped
+
+    profiles:
+      - monitoring
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}'
+
+    volumes:
+      - prometheus_data:/prometheus
+      - ${HOST_PROMETHEUS_CONFIG:-./infrastructure/docker/prometheus/prometheus.yml}:/etc/prometheus/prometheus.yml:ro
+
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+    networks:
+      - madcp
+
+    labels:
+      - "io.portainer.accesscontrol.public=true"
+      - "madcp.service=monitoring"
+
+  # ==========================================================================
+  # Grafana (Optional - only if monitoring enabled)
+  # ==========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: madcp-grafana
+    restart: unless-stopped
+
+    profiles:
+      - monitoring
+
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD required for monitoring}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+      GF_INSTALL_PLUGINS: ${GRAFANA_PLUGINS:-grafana-clock-panel,grafana-simple-json-datasource}
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+
+    networks:
+      - madcp
+
+    depends_on:
+      - prometheus
+
+    labels:
+      - "io.portainer.accesscontrol.public=true"
+      - "madcp.service=monitoring"
+
+# ============================================================================
+# End of Portainer Stack
+# ============================================================================

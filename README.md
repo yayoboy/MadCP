@@ -9,6 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+[![Portainer](https://img.shields.io/badge/portainer-compatible-13BEF9.svg)](https://www.portainer.io/)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-blue.svg)](https://kubernetes.io/)
 
 [Documentazione](#documentazione) • [Quick Start](#quick-start) • [Architettura](#architettura) • [API](#api) • [Contributing](#contributing)
@@ -171,6 +172,18 @@ Per dettagli completi, vedi [Documentazione Architettura](docs/architecture.md).
 ---
 
 ## 🚀 Quick Start
+
+### Opzione 1: Portainer (Più Facile) 🎯
+
+**Hai già Portainer?** Deploy con interfaccia web in 5 minuti!
+
+➡️ **[Vai alla Guida Portainer](docs/deployment-portainer.md)**
+
+Portainer rende il deployment semplicissimo con un'interfaccia grafica - niente command line necessaria!
+
+---
+
+### Opzione 2: Docker Compose (Command Line)
 
 ### Prerequisiti
 
@@ -579,6 +592,50 @@ Vedi [Plugin Directory](plugins/README.md) per lista completa.
 ---
 
 ## 🚢 Deployment
+
+### Portainer (Raccomandato) 🎯
+
+**Deploy con 1 click tramite interfaccia web!**
+
+Portainer rende il deployment di MadCP estremamente semplice e user-friendly:
+
+#### Quick Deploy
+
+1. **Apri Portainer**: `http://your-server:9000`
+2. **Vai su Stacks** → **Add Stack**
+3. **Nome**: `madcp`
+4. **Metodo**:
+   - **Repository**: `https://github.com/yayoboy/MadCP` (file: `portainer-stack.yml`)
+   - **Oppure Web Editor**: Copia/incolla il contenuto di `portainer-stack.yml`
+5. **Configura variabili** (nell'interfaccia Portainer):
+   ```
+   POSTGRES_PASSWORD=your-secure-password
+   JWT_SECRET_KEY=generate-a-long-secret-key-32-chars-min
+   OPENAI_API_KEY=sk-your-openai-key
+   ```
+6. **Deploy the stack** ✅
+
+#### Deploy da Template
+
+Usa il template pre-configurato per un setup ancora più rapido:
+
+1. Importa `portainer-template.json` in Portainer
+2. Vai su **App Templates** → **MadCP**
+3. Clicca **Deploy**
+4. Compila i parametri richiesti
+5. Deploy! 🚀
+
+#### Vantaggi Portainer
+
+- ✅ **Interfaccia visuale** - No command line necessaria
+- ✅ **Gestione facile** - Start/Stop/Restart con un click
+- ✅ **Monitoring integrato** - Logs, stats, health checks in UI
+- ✅ **Updates semplici** - Aggiornamento immagini con un click
+- ✅ **Multi-ambiente** - Gestisci dev, staging, prod da un'unica UI
+
+**📖 Guida completa**: [Deployment con Portainer](docs/deployment-portainer.md)
+
+---
 
 ### Docker Compose (Development)
 
