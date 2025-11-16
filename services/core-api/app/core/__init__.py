@@ -1,0 +1,1 @@
+"""MadCP Core Module"""

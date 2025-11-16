@@ -1,0 +1,588 @@
+# ============================================================================
+# MadCP - Default Configuration
+# ============================================================================
+#
+# This is the default configuration file for MadCP.
+# Values can be overridden by:
+#   1. Environment variables
+#   2. config/production.yaml (in production)
+#   3. config/local.yaml (git-ignored, for local overrides)
+#
+# ============================================================================
+
+# ============================================================================
+# Application Settings
+# ============================================================================
+app:
+  name: "MadCP"
+  version: "1.0.0"
+  environment: "development"
+  debug: true
+  description: "Modern AI-Driven Code Platform"
+
+# ============================================================================
+# API Server Configuration
+# ============================================================================
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  reload: true
+
+  # CORS Configuration
+  cors:
+    enabled: true
+    origins:
+      - "http://localhost:3000"
+      - "http://localhost:8000"
+    allow_credentials: true
+    allow_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "PATCH"
+      - "OPTIONS"
+    allow_headers:
+      - "*"
+
+  # Rate Limiting
+  rate_limit:
+    enabled: true
+    per_minute: 100
+    per_hour: 1000
+    burst: 20
+
+  # Request/Response
+  max_request_size_mb: 100
+  request_timeout: 30
+  compression:
+    enabled: true
+    level: 6
+
+# ============================================================================
+# Database - PostgreSQL
+# ============================================================================
+database:
+  url: "${DATABASE_URL}"
+
+  # Connection Pool
+  pool:
+    size: 10
+    max_overflow: 20
+    timeout: 30
+    recycle: 3600
+
+  # Query settings
+  echo: false  # SQL logging
+  future: true  # SQLAlchemy 2.0 style
+
+  # Migration settings
+  alembic:
+    script_location: "alembic"
+    version_table: "alembic_version"
+
+# ============================================================================
+# Redis - Cache & Message Queue
+# ============================================================================
+redis:
+  url: "${REDIS_URL}"
+  password: null
+
+  # Connection settings
+  max_connections: 50
+  socket_timeout: 5
+  socket_keepalive: true
+
+  # Cache settings
+  cache:
+    default_ttl: 3600  # 1 hour
+    max_size: 1000
+    key_prefix: "madcp:"
+
+  # Session settings
+  session:
+    ttl: 86400  # 24 hours
+    key_prefix: "session:"
+
+# ============================================================================
+# Vector Database - Qdrant
+# ============================================================================
+vector_db:
+  provider: "qdrant"
+  url: "${QDRANT_URL}"
+
+  # Collection configuration
+  collection:
+    name: "madcp_embeddings"
+    vector_size: 1536
+    distance: "cosine"  # cosine, euclidean, dot
+
+  # Search settings
+  search:
+    limit: 10
+    score_threshold: 0.7
+
+  # Indexing
+  index:
+    batch_size: 100
+    parallel_indexing: true
+
+# ============================================================================
+# LLM Configuration
+# ============================================================================
+llm:
+  # Default provider
+  provider: "openai"  # openai, anthropic, local, ollama
+
+  # OpenAI
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    model: "gpt-4-turbo-preview"
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    frequency_penalty: 0.0
+    presence_penalty: 0.0
+    timeout: 60
+    max_retries: 3
+
+  # Anthropic Claude
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY}"
+    model: "claude-3-opus-20240229"
+    max_tokens: 4096
+    temperature: 0.7
+    timeout: 60
+    max_retries: 3
+
+  # Local LLM (Ollama, LM Studio)
+  local:
+    url: "http://localhost:11434"
+    model: "codellama:13b"
+    timeout: 120
+
+  # Token optimization
+  optimization:
+    caching_enabled: true
+    compression_enabled: true
+    max_context_tokens: 16000
+    truncation_strategy: "smart"  # smart, middle, end
+
+# ============================================================================
+# Embeddings Configuration
+# ============================================================================
+embeddings:
+  # Default provider
+  provider: "openai"  # openai, huggingface, local
+
+  # OpenAI Embeddings
+  openai:
+    model: "text-embedding-3-small"
+    dimensions: 1536
+    batch_size: 100
+
+  # HuggingFace Embeddings
+  huggingface:
+    model: "sentence-transformers/all-MiniLM-L6-v2"
+    device: "cpu"  # cpu, cuda
+    batch_size: 32
+
+  # Local Embeddings
+  local:
+    model_path: "/models/embeddings"
+    device: "cpu"
+
+  # Processing settings
+  max_length: 8192
+  chunk_size: 512
+  chunk_overlap: 50
+
+# ============================================================================
+# Code Analysis Configuration
+# ============================================================================
+code_analysis:
+  # Supported languages (tree-sitter)
+  languages:
+    - python
+    - javascript
+    - typescript
+    - go
+    - java
+    - rust
+    - cpp
+    - ruby
+    - php
+
+  # File constraints
+  max_file_size_mb: 10
+  max_repository_size_gb: 5
+
+  # Analysis timeout
+  timeout: 300  # 5 minutes
+
+  # AST settings
+  ast:
+    cache_enabled: true
+    cache_ttl: 86400  # 24 hours
+
+  # Metrics
+  metrics:
+    cyclomatic_complexity: true
+    cognitive_complexity: true
+    halstead_metrics: true
+    maintainability_index: true
+
+  # Dependency analysis
+  dependencies:
+    max_depth: 10
+    include_transitive: true
+
+  # Pattern detection
+  patterns:
+    security_issues: true
+    code_smells: true
+    best_practices: true
+
+# ============================================================================
+# Semantic Search Configuration
+# ============================================================================
+search:
+  # Search modes
+  semantic_search: true
+  keyword_search: true
+  hybrid_search: true
+
+  # Results
+  default_limit: 10
+  max_limit: 100
+  min_score: 0.7
+
+  # Reranking
+  reranking:
+    enabled: true
+    model: "cross-encoder"
+
+  # Filters
+  filters:
+    by_language: true
+    by_file_type: true
+    by_date: true
+
+# ============================================================================
+# AI Assistance Configuration
+# ============================================================================
+assistance:
+  # Features
+  fix_suggestions: true
+  refactoring: true
+  code_review: true
+  diff_generation: true
+
+  # Context settings
+  max_context_files: 5
+  max_context_lines: 1000
+
+  # Quality thresholds
+  confidence_threshold: 0.8
+
+  # Review settings
+  review:
+    check_security: true
+    check_performance: true
+    check_style: true
+    check_tests: true
+
+# ============================================================================
+# Planning Configuration
+# ============================================================================
+planning:
+  # Auto-planning
+  auto_issue_generation: true
+  auto_task_breakdown: true
+
+  # Analysis depth
+  analysis_depth: "comprehensive"  # quick, standard, comprehensive
+
+  # Issue settings
+  issues:
+    auto_assign: false
+    auto_label: true
+    priority_detection: true
+
+  # Task settings
+  tasks:
+    max_subtasks: 10
+    estimate_complexity: true
+
+# ============================================================================
+# Plugin System Configuration
+# ============================================================================
+plugins:
+  enabled: true
+  directory: "./plugins"
+
+  # Loading
+  auto_reload: true
+  reload_interval: 60  # seconds
+
+  # Sandboxing
+  sandbox:
+    enabled: true
+    max_memory_mb: 512
+    max_cpu_percent: 50
+    timeout: 30
+
+  # Discovery
+  auto_discover: true
+  registry_url: "https://registry.madcp.dev"
+
+# ============================================================================
+# Security Configuration
+# ============================================================================
+security:
+  # Authentication
+  auth:
+    jwt:
+      secret_key: "${JWT_SECRET_KEY}"
+      algorithm: "HS256"
+      access_token_expire_minutes: 30
+      refresh_token_expire_days: 7
+
+    oauth2:
+      enabled: false
+      provider_url: "${OAUTH2_PROVIDER_URL}"
+      client_id: "${OAUTH2_CLIENT_ID}"
+      client_secret: "${OAUTH2_CLIENT_SECRET}"
+
+    api_key:
+      enabled: true
+      header: "X-API-Key"
+
+  # Authorization (RBAC)
+  rbac:
+    enabled: true
+    default_role: "viewer"
+    roles:
+      - name: "admin"
+        permissions: ["*"]
+      - name: "developer"
+        permissions: ["read", "write", "analyze"]
+      - name: "viewer"
+        permissions: ["read"]
+
+  # Encryption
+  encryption:
+    at_rest: false
+    in_transit: true
+    algorithm: "AES-256-GCM"
+
+  # Security headers
+  headers:
+    hsts: true
+    csp: true
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+
+# ============================================================================
+# Storage Configuration
+# ============================================================================
+storage:
+  # Backend
+  backend: "local"  # local, s3, minio, gcs, azure
+
+  # Local storage
+  local:
+    base_path: "/app/data/storage"
+
+  # S3 / MinIO
+  s3:
+    endpoint: "${S3_ENDPOINT}"
+    access_key: "${S3_ACCESS_KEY}"
+    secret_key: "${S3_SECRET_KEY}"
+    bucket: "${S3_BUCKET_NAME}"
+    region: "${S3_REGION}"
+    use_ssl: false
+
+  # File management
+  max_upload_size_mb: 100
+  allowed_extensions:
+    - ".py"
+    - ".js"
+    - ".ts"
+    - ".go"
+    - ".java"
+    - ".rs"
+    - ".cpp"
+    - ".hpp"
+
+# ============================================================================
+# Observability Configuration
+# ============================================================================
+observability:
+  # Logging
+  logging:
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    format: "json"  # json, text
+    output: "stdout"  # stdout, file
+    file: "/var/log/madcp/app.log"
+
+    # Structured logging
+    structured: true
+    include_trace_id: true
+
+  # Metrics (Prometheus)
+  metrics:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+
+    # Custom metrics
+    custom_metrics:
+      - name: "analysis_duration"
+        type: "histogram"
+      - name: "search_requests"
+        type: "counter"
+
+  # Tracing (OpenTelemetry)
+  tracing:
+    enabled: false
+    exporter: "otlp"
+    endpoint: "${OTEL_EXPORTER_OTLP_ENDPOINT}"
+    service_name: "madcp-core-api"
+    sample_rate: 0.1
+
+  # Error tracking (Sentry)
+  error_tracking:
+    enabled: false
+    dsn: "${SENTRY_DSN}"
+    environment: "${SENTRY_ENVIRONMENT}"
+    traces_sample_rate: 0.1
+
+# ============================================================================
+# Background Jobs Configuration
+# ============================================================================
+jobs:
+  # Celery / Task Queue
+  broker_url: "${CELERY_BROKER_URL}"
+  result_backend: "${CELERY_RESULT_BACKEND}"
+
+  # Worker settings
+  worker:
+    concurrency: 4
+    prefetch_multiplier: 2
+    max_tasks_per_child: 100
+
+  # Task settings
+  task:
+    time_limit: 3600  # 1 hour
+    soft_time_limit: 3000  # 50 minutes
+    acks_late: true
+    reject_on_worker_lost: true
+
+  # Scheduled tasks
+  beat:
+    enabled: false
+    schedule:
+      # Example: cleanup old data every day at 2 AM
+      cleanup:
+        task: "tasks.cleanup"
+        schedule: "0 2 * * *"
+
+# ============================================================================
+# Notifications Configuration
+# ============================================================================
+notifications:
+  # Email
+  email:
+    enabled: false
+    smtp_host: "${EMAIL_SMTP_HOST}"
+    smtp_port: 587
+    smtp_user: "${EMAIL_SMTP_USER}"
+    smtp_password: "${EMAIL_SMTP_PASSWORD}"
+    from_email: "${EMAIL_FROM}"
+    use_tls: true
+
+  # Webhooks
+  webhooks:
+    enabled: false
+    retry_attempts: 3
+    timeout: 10
+
+# ============================================================================
+# Performance & Optimization
+# ============================================================================
+performance:
+  # Concurrency limits
+  max_concurrent_requests: 100
+  max_concurrent_analysis: 5
+
+  # Caching strategy
+  cache_strategy: "aggressive"  # conservative, balanced, aggressive
+
+  # Connection pooling
+  connection_pool:
+    database: 10
+    redis: 50
+    http: 100
+
+  # Timeouts
+  timeouts:
+    request: 30
+    analysis: 300
+    embedding: 60
+
+# ============================================================================
+# Feature Flags
+# ============================================================================
+features:
+  # Core features
+  semantic_search: true
+  code_analysis: true
+  ai_assistance: true
+  planning: true
+  plugins: true
+  web_ui: true
+
+  # Experimental features
+  experimental:
+    enabled: false
+    realtime_collaboration: false
+    voice_commands: false
+    auto_refactoring: false
+
+# ============================================================================
+# Development Settings
+# ============================================================================
+development:
+  # Hot reload
+  reload: true
+
+  # Debug tools
+  debug_toolbar: false
+  profiling: false
+
+  # Testing
+  testing_mode: false
+  mock_llm: false
+
+  # Development database
+  use_dev_db: true
+
+# ============================================================================
+# Production Settings (Override in config/production.yaml)
+# ============================================================================
+# production:
+#   debug: false
+#   reload: false
+#   workers: 4
+#   log_level: "WARNING"
+#   cache_strategy: "aggressive"
+#   security:
+#     encryption:
+#       at_rest: true
+#       in_transit: true
+
+# ============================================================================
+# End of Configuration
+# ============================================================================

@@ -1,0 +1,99 @@
+# ============================================================================
+# MadCP - Prometheus Configuration
+# ============================================================================
+#
+# This configuration file defines:
+# - Scrape targets for metrics collection
+# - Alerting rules
+# - Service discovery
+#
+# ============================================================================
+
+global:
+  scrape_interval: 15s  # Default scrape interval
+  evaluation_interval: 15s  # How frequently to evaluate rules
+  external_labels:
+    cluster: 'madcp'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - 'alertmanager:9093'
+
+# Load rules once and periodically evaluate them
+# rule_files:
+#   - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # ========================================================================
+  # Prometheus self-monitoring
+  # ========================================================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # ========================================================================
+  # MadCP Core API
+  # ========================================================================
+  - job_name: 'madcp-core-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['core-api:8000']
+        labels:
+          service: 'core-api'
+          component: 'backend'
+
+  # ========================================================================
+  # PostgreSQL Exporter (if enabled)
+  # ========================================================================
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: 'postgres'
+
+  # ========================================================================
+  # Redis Exporter (if enabled)
+  # ========================================================================
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+  #       labels:
+  #         service: 'redis'
+
+  # ========================================================================
+  # Node Exporter (system metrics, if enabled)
+  # ========================================================================
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #       labels:
+  #         service: 'node-exporter'
+
+  # ========================================================================
+  # Cadvisor (container metrics, if enabled)
+  # ========================================================================
+  # - job_name: 'cadvisor'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
+  #       labels:
+  #         service: 'cadvisor'
+
+# ============================================================================
+# Recording Rules (optional)
+# ============================================================================
+# Example recording rules for commonly used queries
+# rule_files:
+#   - 'recording_rules.yml'
+
+# ============================================================================
+# Remote Write (for long-term storage, optional)
+# ============================================================================
+# remote_write:
+#   - url: "http://remote-storage:9009/api/v1/write"

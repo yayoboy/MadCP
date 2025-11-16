@@ -1,0 +1,175 @@
+# ============================================================================
+# MadCP - Docker Compose Development Override
+# ============================================================================
+#
+# This file extends docker-compose.yml with development-specific overrides
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# ============================================================================
+
+version: '3.8'
+
+services:
+
+  # ==========================================================================
+  # Core API - Development Overrides
+  # ==========================================================================
+  core-api:
+    build:
+      target: development
+      args:
+        - INSTALL_DEV=true
+
+    environment:
+      # Development settings
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+      RELOAD: "true"
+
+      # Development tools
+      PROFILING_ENABLED: "true"
+
+    volumes:
+      # Mount source code for hot reload
+      - ./services/core-api:/app:cached
+      - ./shared:/app/shared:cached
+      - /app/.venv  # Don't mount virtual env
+
+    # Expose debugger port
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # Python debugger (debugpy)
+
+    # Development command with debugger
+    command: >
+      python -m debugpy
+      --listen 0.0.0.0:5678
+      -m uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level debug
+
+  # ==========================================================================
+  # Web UI - Development Overrides
+  # ==========================================================================
+  web-ui:
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+
+    volumes:
+      - ./web-ui:/app:cached
+      - /app/node_modules
+      - /app/.next
+
+    # Expose Next.js debugging
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js inspector
+
+  # ==========================================================================
+  # PostgreSQL - Development Overrides
+  # ==========================================================================
+  postgres:
+    environment:
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+
+    # Expose postgres for local tools
+    ports:
+      - "5432:5432"
+
+    # Additional volume for SQL scripts
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./infrastructure/docker/postgres/dev-seed.sql:/docker-entrypoint-initdb.d/02-dev-seed.sql:ro
+
+  # ==========================================================================
+  # Redis - Development Overrides
+  # ==========================================================================
+  redis:
+    # Enable Redis CLI access
+    ports:
+      - "6379:6379"
+
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --loglevel debug
+
+  # ==========================================================================
+  # Redis Commander - Redis GUI (Development Only)
+  # ==========================================================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: madcp-redis-commander
+    restart: unless-stopped
+
+    environment:
+      REDIS_HOSTS: local:redis:6379
+
+    ports:
+      - "8081:8081"
+
+    networks:
+      - madcp-network
+
+    depends_on:
+      - redis
+
+  # ==========================================================================
+  # PgAdmin - PostgreSQL GUI (Development Only)
+  # ==========================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: madcp-pgadmin
+    restart: unless-stopped
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@madcp.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+
+    volumes:
+      - ./infrastructure/docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+
+    ports:
+      - "5050:80"
+
+    networks:
+      - madcp-network
+
+    depends_on:
+      - postgres
+
+  # ==========================================================================
+  # Mailhog - Email Testing (Development Only)
+  # ==========================================================================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: madcp-mailhog
+    restart: unless-stopped
+
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+
+    networks:
+      - madcp-network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ============================================================================
+# End of docker-compose.dev.yml
+# ============================================================================
