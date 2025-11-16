@@ -139,6 +139,9 @@ volumes/
 # Database dumps
 *.dump
 
+# Allow infrastructure SQL files
+!infrastructure/**/*.sql
+
 # ============================================================================
 # Environment & Secrets
 # ============================================================================
