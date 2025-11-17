@@ -14,7 +14,8 @@
 # ============================================================================
 # Base Stage - Common Dependencies
 # ============================================================================
-FROM python:3.11-slim as base
+# Pin to specific patch version for reproducible builds (Best Practice 2024)
+FROM python:3.11.8-slim as base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -103,7 +104,8 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # ============================================================================
 # Production Stage
 # ============================================================================
-FROM python:3.11-slim as production
+# Pin to specific patch version for reproducible builds (Best Practice 2024)
+FROM python:3.11.8-slim as production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

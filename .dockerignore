@@ -1,0 +1,70 @@
+# ============================================================================
+# MadCP - Root Docker Build Ignore
+# ============================================================================
+#
+# This .dockerignore applies to root-level Docker builds
+# Individual services may have their own .dockerignore files
+#
+# ============================================================================
+
+# Version Control
+.git/
+.gitignore
+.gitattributes
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Documentation
+docs/
+*.md
+!README.md
+!DEPLOYMENT-GUIDE.md
+!PORTAINER.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Docker
+docker-compose*.yml
+!portainer-stack.yml
+Dockerfile*
+.dockerignore
+
+# Data & Logs
+data/
+logs/
+*.log
+*.db
+*.sqlite
+
+# Tests
+tests/
+*_test.py
+test_*.py
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+venv/
+env/
+
+# Node
+node_modules/
+
+# Temporary
+tmp/
+temp/
+*.tmp

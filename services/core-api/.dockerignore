@@ -1,0 +1,185 @@
+# ============================================================================
+# MadCP Core API - Docker Build Ignore
+# ============================================================================
+#
+# This file specifies which files should be excluded from the Docker build
+# context to:
+#   1. Reduce build context size (faster builds)
+#   2. Prevent sensitive files from being included in images
+#   3. Improve security by excluding unnecessary files
+#
+# Best Practice: Always include .dockerignore for security and performance
+# ============================================================================
+
+# ============================================================================
+# Version Control
+# ============================================================================
+.git/
+.gitignore
+.gitattributes
+
+# ============================================================================
+# Python
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+*.cover
+coverage.xml
+*.log
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+*.egg
+
+# ============================================================================
+# Environment & Secrets (CRITICAL - Never include in Docker images!)
+# ============================================================================
+.env
+.env.*
+!.env.example
+*.env
+.env.local
+.env.production
+.env.development
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+credentials.json
+
+# ============================================================================
+# IDE & Editors
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# Documentation (not needed in runtime image)
+# ============================================================================
+docs/
+*.md
+!README.md
+*.txt
+!requirements.txt
+
+# ============================================================================
+# Logs & Temporary Files
+# ============================================================================
+*.log
+logs/
+*.tmp
+*.temp
+tmp/
+temp/
+
+# ============================================================================
+# Tests (not needed in production image)
+# ============================================================================
+tests/
+test_*.py
+*_test.py
+conftest.py
+
+# ============================================================================
+# CI/CD
+# ============================================================================
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# ============================================================================
+# Docker
+# ============================================================================
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# ============================================================================
+# Data & Storage (large files, not part of code)
+# ============================================================================
+data/
+*.db
+*.sqlite
+*.sql
+backups/
+
+# ============================================================================
+# Cache & Build Artifacts
+# ============================================================================
+.cache/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# ============================================================================
+# Node.js (if any frontend assets)
+# ============================================================================
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# ============================================================================
+# OS Files
+# ============================================================================
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ============================================================================
+# Jupyter Notebooks
+# ============================================================================
+*.ipynb
+.ipynb_checkpoints/
+
+# ============================================================================
+# Security Scanning Reports
+# ============================================================================
+*.sarif
+trivy-report.*
+security-report.*
+
+# ============================================================================
+# IMPORTANT NOTES
+# ============================================================================
+#
+# 1. This file prevents secrets from being accidentally included in Docker images
+# 2. Reduces build context from ~500MB to ~50MB (typical)
+# 3. Speeds up builds significantly
+# 4. Critical for CI/CD pipelines
+#
+# Always keep this file updated when adding new directories or file types!
+#
+# ============================================================================
