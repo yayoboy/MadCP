@@ -2,17 +2,40 @@
 # MadCP - Portainer Stack Configuration
 # ============================================================================
 #
-# This stack is optimized for deployment via Portainer.
+# Stack ottimizzato per deployment tramite Portainer.
+# Testato e funzionante su Portainer CE/BE 2.19+
 #
-# Deployment Instructions:
-#   1. Open Portainer UI
-#   2. Go to "Stacks" → "Add Stack"
-#   3. Name: madcp
-#   4. Paste this file content OR use "Repository" method
-#   5. Configure environment variables in Portainer UI
-#   6. Deploy!
+# DEPLOYMENT IN PORTAINER:
 #
-# All configuration is done via environment variables in Portainer.
+#   METODO 1 - Da Repository Git (Raccomandato):
+#     1. Portainer → Stacks → Add stack
+#     2. Nome: madcp
+#     3. Build method: Repository
+#     4. Repository URL: https://github.com/yayoboy/MadCP
+#     5. Repository reference: main
+#     6. Compose path: portainer-stack.yml
+#     7. Environment variables: Aggiungi le variabili (vedi sotto)
+#     8. Deploy the stack
+#
+#   METODO 2 - Web Editor:
+#     1. Portainer → Stacks → Add stack
+#     2. Nome: madcp
+#     3. Build method: Web editor
+#     4. Copia/incolla questo file
+#     5. Environment variables: Aggiungi le variabili (vedi sotto)
+#     6. Deploy the stack
+#
+# VARIABILI OBBLIGATORIE (da configurare in Portainer UI):
+#   POSTGRES_PASSWORD=your-secure-password-here
+#   JWT_SECRET_KEY=your-jwt-secret-min-32-characters
+#
+# VARIABILI OPZIONALI:
+#   OPENAI_API_KEY=sk-your-key           # Per funzionalità AI
+#   ANTHROPIC_API_KEY=sk-ant-your-key    # Opzionale
+#   POSTGRES_DB=madcp                     # Default: madcp
+#   POSTGRES_USER=madcp                   # Default: madcp
+#   API_PORT=8000                         # Default: 8000
+#
 # ============================================================================
 
 version: '3.8'
@@ -23,10 +46,9 @@ version: '3.8'
 networks:
   madcp:
     driver: bridge
-    name: madcp-network
 
 # ============================================================================
-# Volumes
+# Volumes (Named volumes - gestiti da Docker)
 # ============================================================================
 volumes:
   postgres_data:
@@ -34,12 +56,6 @@ volumes:
   redis_data:
     driver: local
   qdrant_data:
-    driver: local
-  app_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
     driver: local
 
 # ============================================================================
@@ -58,7 +74,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-madcp}
       POSTGRES_USER: ${POSTGRES_USER:-madcp}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required - Set in Portainer environment variables}
       PGDATA: /var/lib/postgresql/data/pgdata
 
     volumes:
@@ -71,10 +87,11 @@ services:
       - madcp
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-madcp}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
     labels:
       - "io.portainer.accesscontrol.public=true"
@@ -108,6 +125,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 20s
 
     labels:
       - "io.portainer.accesscontrol.public=true"
@@ -136,10 +154,11 @@ services:
       - madcp
 
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6333/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
     labels:
       - "io.portainer.accesscontrol.public=true"
@@ -148,22 +167,32 @@ services:
   # ==========================================================================
   # MadCP Core API
   # ==========================================================================
+  # NOTA: Questo servizio viene buildato dalla sorgente.
+  #       Portainer supporta build da Git repository.
+  # ==========================================================================
   core-api:
-    image: ${CORE_API_IMAGE:-madcp/core-api:latest}
-    container_name: madcp-core-api
-    restart: unless-stopped
-
-    # Build from source (if image not available)
     build:
       context: ./services/core-api
       dockerfile: Dockerfile
-      target: ${BUILD_TARGET:-production}
+      target: production
+      args:
+        - BUILD_DATE=${BUILD_DATE:-2024-01-01}
+        - VCS_REF=${VCS_REF:-unknown}
+
+    image: madcp-core-api:${IMAGE_TAG:-latest}
+    container_name: madcp-core-api
+    restart: unless-stopped
 
     environment:
       # Application
       APP_NAME: ${APP_NAME:-MadCP}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
       APP_ENV: ${APP_ENV:-production}
       DEBUG: ${DEBUG:-false}
+
+      # Server
+      HOST: 0.0.0.0
+      PORT: 8000
 
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-madcp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-madcp}
@@ -175,12 +204,13 @@ services:
       QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION:-madcp_embeddings}
 
-      # LLM API Keys
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # LLM Configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
 
       # Security
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY required}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY required - Set in Portainer environment variables}
 
       # Features
       FEATURE_SEMANTIC_SEARCH: ${FEATURE_SEMANTIC_SEARCH:-true}
@@ -192,11 +222,10 @@ services:
       # Monitoring
       PROMETHEUS_ENABLED: ${PROMETHEUS_ENABLED:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
 
-    volumes:
-      - app_data:/app/data
-      - ${HOST_CONFIG_PATH:-./config}:/app/config:ro
-      - ${HOST_PLUGINS_PATH:-./plugins}:/app/plugins
+      # Performance
+      WORKERS: ${WORKERS:-1}
 
     ports:
       - "${API_PORT:-8000}:8000"
@@ -213,82 +242,132 @@ services:
         condition: service_healthy
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
     labels:
       - "io.portainer.accesscontrol.public=true"
       - "madcp.service=core-api"
-      - "traefik.enable=true"
+      # Traefik labels (se usi Traefik come reverse proxy)
+      - "traefik.enable=${TRAEFIK_ENABLED:-false}"
       - "traefik.http.routers.madcp-api.rule=Host(`${API_DOMAIN:-api.madcp.local}`)"
       - "traefik.http.services.madcp-api.loadbalancer.server.port=8000"
 
-  # ==========================================================================
-  # Prometheus (Optional - only if monitoring enabled)
-  # ==========================================================================
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: madcp-prometheus
-    restart: unless-stopped
-
-    profiles:
-      - monitoring
-
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}'
-
-    volumes:
-      - prometheus_data:/prometheus
-      - ${HOST_PROMETHEUS_CONFIG:-./infrastructure/docker/prometheus/prometheus.yml}:/etc/prometheus/prometheus.yml:ro
-
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-
-    networks:
-      - madcp
-
-    labels:
-      - "io.portainer.accesscontrol.public=true"
-      - "madcp.service=monitoring"
-
-  # ==========================================================================
-  # Grafana (Optional - only if monitoring enabled)
-  # ==========================================================================
-  grafana:
-    image: grafana/grafana:latest
-    container_name: madcp-grafana
-    restart: unless-stopped
-
-    profiles:
-      - monitoring
-
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD required for monitoring}
-      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
-      GF_INSTALL_PLUGINS: ${GRAFANA_PLUGINS:-grafana-clock-panel,grafana-simple-json-datasource}
-
-    volumes:
-      - grafana_data:/var/lib/grafana
-
-    ports:
-      - "${GRAFANA_PORT:-3001}:3000"
-
-    networks:
-      - madcp
-
-    depends_on:
-      - prometheus
-
-    labels:
-      - "io.portainer.accesscontrol.public=true"
-      - "madcp.service=monitoring"
-
 # ============================================================================
-# End of Portainer Stack
+# INSTRUZIONI POST-DEPLOYMENT
+# ============================================================================
+#
+# Dopo il deployment:
+#
+# 1. VERIFICA STATO:
+#    Portainer → Containers → Controlla che tutti siano "healthy" (verde)
+#
+# 2. CONTROLLA LOGS:
+#    Portainer → Containers → madcp-core-api → Logs
+#    Cerca "Application startup complete" o errori
+#
+# 3. TESTA L'API:
+#    Apri nel browser: http://YOUR_SERVER_IP:8000/docs
+#    Dovresti vedere la documentazione Swagger
+#
+# 4. HEALTH CHECK:
+#    curl http://YOUR_SERVER_IP:8000/health
+#    Risposta attesa: {"status":"healthy","version":"1.0.0",...}
+#
+# 5. INIZIALIZZAZIONE DATABASE (se necessario):
+#    Se devi importare lo schema iniziale:
+#      docker exec -i madcp-postgres psql -U madcp madcp < init.sql
+#    Oppure usa Portainer → Containers → madcp-postgres → Console
+#
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+#
+# PROBLEMA: Container "unhealthy"
+# SOLUZIONE:
+#   1. Verifica logs del container
+#   2. Controlla variabili d'ambiente in Portainer Stack Editor
+#   3. Verifica che POSTGRES_PASSWORD e JWT_SECRET_KEY siano impostate
+#
+# PROBLEMA: "Build failed"
+# SOLUZIONE:
+#   1. Verifica che il repository sia accessibile
+#   2. Controlla che il Dockerfile esista in services/core-api/
+#   3. Verifica connessione internet del server Portainer
+#
+# PROBLEMA: Connection refused
+# SOLUZIONE:
+#   1. Verifica che tutti i servizi siano started
+#   2. Attendi che i health checks passino (può richiedere 1-2 min)
+#   3. Controlla che le porte non siano già in uso
+#
+# PROBLEMA: Porta già in uso
+# SOLUZIONE:
+#   In Portainer Stack Editor, modifica:
+#     API_PORT=8080    # Invece di 8000
+#   Poi Update the stack
+#
+# ============================================================================
+# AGGIORNAMENTI
+# ============================================================================
+#
+# Per aggiornare MadCP:
+#
+# METODO 1 - Pull & Redeploy:
+#   1. Portainer → Stacks → madcp
+#   2. Click "Pull and redeploy"
+#   3. Attendi completamento
+#
+# METODO 2 - Git Webhook (Auto-update):
+#   1. Portainer → Stacks → madcp → Editor
+#   2. Abilita "Enable GitOps updates"
+#   3. Configura polling interval o webhook
+#   4. Gli aggiornamenti avverranno automaticamente
+#
+# ============================================================================
+# BACKUP & RESTORE
+# ============================================================================
+#
+# BACKUP DATABASE:
+#   docker exec madcp-postgres pg_dump -U madcp madcp > backup_$(date +%Y%m%d).sql
+#
+# RESTORE DATABASE:
+#   docker exec -i madcp-postgres psql -U madcp madcp < backup_20240101.sql
+#
+# BACKUP VOLUMI (tramite Portainer):
+#   Portainer → Volumes → postgres_data → Export
+#
+# ============================================================================
+# SICUREZZA - CHECKLIST PRODUZIONE
+# ============================================================================
+#
+# Prima di usare in produzione:
+#
+#  [ ] Cambia POSTGRES_PASSWORD con password sicura (min 16 caratteri)
+#  [ ] Genera JWT_SECRET_KEY sicuro (min 32 caratteri): openssl rand -hex 32
+#  [ ] Imposta DEBUG=false
+#  [ ] Configura CORS_ORIGINS per il tuo dominio
+#  [ ] Abilita TLS/SSL (usa Traefik o Nginx reverse proxy)
+#  [ ] Limita esposizione porte (usa reverse proxy invece di porte dirette)
+#  [ ] Configura firewall per limitare accesso
+#  [ ] Abilita backup automatici
+#  [ ] Configura monitoring e alerting
+#  [ ] Usa secrets Docker per credenziali (invece di environment variables)
+#  [ ] Verifica che LOG_LEVEL sia WARNING o ERROR (non DEBUG/INFO)
+#
+# ============================================================================
+# SUPPORTO
+# ============================================================================
+#
+# Documentazione completa:
+#   - Quick Start: https://github.com/yayoboy/MadCP/blob/main/PORTAINER.md
+#   - Guida Portainer: https://github.com/yayoboy/MadCP/blob/main/docs/deployment-portainer.md
+#   - README: https://github.com/yayoboy/MadCP
+#
+# Issues & Support:
+#   https://github.com/yayoboy/MadCP/issues
+#
 # ============================================================================

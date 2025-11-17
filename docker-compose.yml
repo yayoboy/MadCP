@@ -1,15 +1,21 @@
 # ============================================================================
-# MadCP - Docker Compose Configuration (Development)
+# MadCP - Docker Compose (Local Development & Testing)
 # ============================================================================
 #
-# This docker-compose file sets up the complete MadCP development environment
-# with all required services.
+# Configurazione funzionante per sviluppo locale e testing rapido.
 #
-# Usage:
-#   docker-compose up -d          # Start all services
-#   docker-compose down           # Stop all services
-#   docker-compose logs -f        # Follow logs
-#   docker-compose ps             # Check service status
+# QUICK START:
+#   1. cp .env.example .env
+#   2. Modifica .env con le tue API keys
+#   3. docker-compose up -d
+#   4. Apri http://localhost:8000/docs
+#
+# COMANDI UTILI:
+#   docker-compose up -d              # Avvia tutti i servizi
+#   docker-compose ps                 # Verifica stato
+#   docker-compose logs -f core-api   # Segui logs
+#   docker-compose down               # Ferma tutto
+#   docker-compose down -v            # Ferma e rimuovi volumi
 #
 # ============================================================================
 
@@ -19,37 +25,16 @@ version: '3.8'
 # Networks
 # ============================================================================
 networks:
-  madcp-network:
+  madcp:
     driver: bridge
-    name: madcp-network
 
 # ============================================================================
 # Volumes
 # ============================================================================
 volumes:
-  # Database
-  postgres-data:
-    name: madcp-postgres-data
-
-  # Redis
-  redis-data:
-    name: madcp-redis-data
-
-  # Vector Database
-  qdrant-data:
-    name: madcp-qdrant-data
-
-  # Application data
-  app-data:
-    name: madcp-app-data
-
-  # Prometheus
-  prometheus-data:
-    name: madcp-prometheus-data
-
-  # Grafana
-  grafana-data:
-    name: madcp-grafana-data
+  postgres_data:
+  redis_data:
+  qdrant_data:
 
 # ============================================================================
 # Services
@@ -57,7 +42,7 @@ volumes:
 services:
 
   # ==========================================================================
-  # PostgreSQL - Primary Database
+  # PostgreSQL Database
   # ==========================================================================
   postgres:
     image: postgres:15-alpine
@@ -67,34 +52,29 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-madcp}
       POSTGRES_USER: ${POSTGRES_USER:-madcp}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-madcp_password}
-      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-madcp_dev_password}
       PGDATA: /var/lib/postgresql/data/pgdata
 
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+      # Init SQL (opzionale, commentato per default)
+      # - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
 
     networks:
-      - madcp-network
+      - madcp
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-madcp}"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      start_period: 30s
 
   # ==========================================================================
-  # Redis - Cache & Message Queue
+  # Redis Cache
   # ==========================================================================
   redis:
     image: redis:7-alpine
@@ -104,33 +84,27 @@ services:
     command: >
       redis-server
       --appendonly yes
-      --appendfsync everysec
-      --maxmemory 512mb
+      --maxmemory ${REDIS_MAX_MEMORY:-256mb}
       --maxmemory-policy allkeys-lru
 
     volumes:
-      - redis-data:/data
+      - redis_data:/data
 
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
 
     networks:
-      - madcp-network
+      - madcp
 
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      start_period: 20s
 
   # ==========================================================================
-  # Qdrant - Vector Database
+  # Qdrant Vector Database
   # ==========================================================================
   qdrant:
     image: qdrant/qdrant:latest
@@ -139,32 +113,27 @@ services:
 
     environment:
       QDRANT__SERVICE__GRPC_PORT: 6334
-      QDRANT__LOG_LEVEL: INFO
+      QDRANT__LOG_LEVEL: ${QDRANT_LOG_LEVEL:-INFO}
 
     volumes:
-      - qdrant-data:/qdrant/storage
+      - qdrant_data:/qdrant/storage
 
     ports:
-      - "6333:6333"  # HTTP API
-      - "6334:6334"  # gRPC
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
 
     networks:
-      - madcp-network
+      - madcp
 
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6333/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      start_period: 30s
 
   # ==========================================================================
-  # Core API - FastAPI Backend
+  # MadCP Core API
   # ==========================================================================
   core-api:
     build:
@@ -172,41 +141,62 @@ services:
       dockerfile: Dockerfile
       target: development
 
+    image: madcp-core-api:local
     container_name: madcp-core-api
     restart: unless-stopped
 
     environment:
       # Application
-      APP_ENV: development
-      DEBUG: "true"
+      APP_NAME: ${APP_NAME:-MadCP}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      APP_ENV: ${APP_ENV:-development}
+      DEBUG: ${DEBUG:-true}
+
+      # Server
+      HOST: 0.0.0.0
+      PORT: 8000
 
       # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-madcp}:${POSTGRES_PASSWORD:-madcp_password}@postgres:5432/${POSTGRES_DB:-madcp}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-madcp}:${POSTGRES_PASSWORD:-madcp_dev_password}@postgres:5432/${POSTGRES_DB:-madcp}
 
       # Redis
       REDIS_URL: redis://redis:6379/0
 
       # Qdrant
       QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION:-madcp_embeddings}
 
-      # LLM
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # LLM (opzionali)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
 
       # Security
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-DO-NOT-USE-IN-PRODUCTION}
+
+      # Features
+      FEATURE_SEMANTIC_SEARCH: ${FEATURE_SEMANTIC_SEARCH:-true}
+      FEATURE_CODE_ANALYSIS: ${FEATURE_CODE_ANALYSIS:-true}
+      FEATURE_AI_ASSISTANCE: ${FEATURE_AI_ASSISTANCE:-true}
+      FEATURE_PLANNING: ${FEATURE_PLANNING:-true}
+      PLUGINS_ENABLED: ${PLUGINS_ENABLED:-true}
+
+      # Monitoring
+      PROMETHEUS_ENABLED: ${PROMETHEUS_ENABLED:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
 
     volumes:
-      - ./services/core-api:/app
-      - app-data:/app/data
-      - ./config:/app/config:ro
-      - ./plugins:/app/plugins
+      # Mount source code for hot reload in development
+      - ./services/core-api/app:/app/app:ro
+      # Config files (optional)
+      # - ./config:/app/config:ro
 
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
 
     networks:
-      - madcp-network
+      - madcp
 
     depends_on:
       postgres:
@@ -223,152 +213,34 @@ services:
       retries: 3
       start_period: 40s
 
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-    command: >
-      uvicorn app.main:app
-      --host 0.0.0.0
-      --port 8000
-      --reload
-      --log-level info
-
-  # ==========================================================================
-  # Web UI - Next.js Frontend
-  # ==========================================================================
-  web-ui:
-    build:
-      context: ./web-ui
-      dockerfile: Dockerfile
-      target: development
-
-    container_name: madcp-web-ui
-    restart: unless-stopped
-
-    environment:
-      NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-      NEXT_PUBLIC_WS_URL: ws://localhost:8000/ws
-
-    volumes:
-      - ./web-ui:/app
-      - /app/node_modules
-      - /app/.next
-
-    ports:
-      - "3000:3000"
-
-    networks:
-      - madcp-network
-
-    depends_on:
-      - core-api
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-    command: npm run dev
-
-  # ==========================================================================
-  # Prometheus - Metrics Collection
-  # ==========================================================================
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: madcp-prometheus
-    restart: unless-stopped
-
-    volumes:
-      - ./infrastructure/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-
-    ports:
-      - "9090:9090"
-
-    networks:
-      - madcp-network
-
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--storage.tsdb.retention.time=30d'
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ==========================================================================
-  # Grafana - Metrics Visualization
-  # ==========================================================================
-  grafana:
-    image: grafana/grafana:latest
-    container_name: madcp-grafana
-    restart: unless-stopped
-
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
-      GF_SERVER_ROOT_URL: http://localhost:3001
-
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./infrastructure/docker/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./infrastructure/docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
-
-    ports:
-      - "3001:3000"
-
-    networks:
-      - madcp-network
-
-    depends_on:
-      - prometheus
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ==========================================================================
-  # Nginx - Reverse Proxy (Optional for production-like setup)
-  # ==========================================================================
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: madcp-nginx
-  #   restart: unless-stopped
-  #
-  #   volumes:
-  #     - ./infrastructure/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./infrastructure/docker/nginx/conf.d:/etc/nginx/conf.d:ro
-  #
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #
-  #   networks:
-  #     - madcp-network
-  #
-  #   depends_on:
-  #     - core-api
-  #     - web-ui
-  #
-  #   logging:
-  #     driver: "json-file"
-  #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
-
 # ============================================================================
-# End of docker-compose.yml
+# NOTES:
+# ============================================================================
+#
+# 1. ENVIRONMENT VARIABLES:
+#    Crea un file .env nella root del progetto con:
+#      POSTGRES_PASSWORD=your_password
+#      JWT_SECRET_KEY=your_secret_key
+#      OPENAI_API_KEY=sk-your-key
+#
+# 2. INIZIALIZZAZIONE DATABASE:
+#    Per importare lo schema iniziale, uncommenta il volume
+#    ./infrastructure/docker/postgres/init.sql nel servizio postgres
+#
+# 3. HOT RELOAD:
+#    Il volume ./services/core-api/app:/app/app permette hot reload
+#    in development. Rimuovilo in produzione.
+#
+# 4. PORTE:
+#    Puoi modificare le porte tramite .env:
+#      API_PORT=8080
+#      POSTGRES_PORT=5433
+#      REDIS_PORT=6380
+#
+# 5. FIRST RUN:
+#    Al primo avvio, aspetta che tutti i servizi siano healthy:
+#      docker-compose ps
+#    Poi testa l'API:
+#      curl http://localhost:8000/health
+#
 # ============================================================================
